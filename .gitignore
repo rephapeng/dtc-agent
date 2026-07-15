@@ -1,0 +1,20 @@
+# Secrets — never commit
+.env
+
+# Runtime logs (can contain live tokens in API URLs)
+logs/
+
+# Personal / runtime data
+incoming/
+.sessions/
+.dtc/
+
+# Single-flight lock files
+*.lock
+
+# Python / editor cruft
+__pycache__/
+*.pyc
+
+# Local machine-specific Claude Code settings
+.claude/settings.local.json

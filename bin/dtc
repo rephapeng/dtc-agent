@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# dtc — devtocash SEO/content agent CLI
+#   dtc index                 rebuild the grounding knowledge from live content
+#   dtc ask "<question>"      SEO analysis / Q&A (read-only, grounded, real GSC data)
+#   dtc post [--dry-run]      generate ONE new grounded article; publish (or dry-run)
+#   dtc gsc [args...]         passthrough to the Google Search Console helper
+set -euo pipefail
+AGENT_DIR="/opt/dtc-agent"
+LIB="$AGENT_DIR/lib"
+
+cmd="${1:-help}"; shift || true
+case "$cmd" in
+  index)
+    python3 "$LIB/build_knowledge.py"
+    ;;
+  ask)
+    q="${*:?usage: dtc ask \"your question\"}"
+    python3 "$LIB/build_knowledge.py" >/dev/null   # keep grounding fresh
+    "$LIB/run_claude.sh" "$AGENT_DIR/prompts/seo_analyst.md" \
+      $'Read\nGrep\nGlob\nBash(python3 /opt/devtocash/gsc_api.py:*)' "$q"
+    ;;
+  post)
+    exec "$LIB/autopost.sh" "$@"
+    ;;
+  gsc)
+    exec python3 /opt/devtocash/gsc_api.py "$@"
+    ;;
+  help|--help|-h)
+    sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'
+    ;;
+  *)
+    echo "unknown command: $cmd" >&2
+    sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//' >&2
+    exit 2
+    ;;
+esac
