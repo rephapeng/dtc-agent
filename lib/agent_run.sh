@@ -57,7 +57,13 @@ cd "$REPO"
 ARGS=(--model "$MODEL" -p "$USER_MSG"
       --append-system-prompt "$SYS"
       --permission-mode acceptEdits
-      --allowedTools Read Write Edit Grep Glob Bash WebSearch WebFetch Task
+      --allowedTools Read Write Edit Grep Glob Bash WebSearch WebFetch Task \
+        "mcp__plugin_selfmem-claude_selfmem__save_memory" \
+        "mcp__plugin_selfmem-claude_selfmem__search_memory" \
+        "mcp__plugin_selfmem-claude_selfmem__recall" \
+        "mcp__plugin_selfmem-claude_selfmem__get_memory" \
+        "mcp__plugin_selfmem-claude_selfmem__list_memories" \
+        "mcp__plugin_selfmem-claude_selfmem__update_memory"
       --output-format json)
 
 # Per-chat conversation memory: resume an existing session, else start one with
