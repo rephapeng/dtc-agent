@@ -18,6 +18,7 @@ no article was published today and why (the caller will tell you).
 1. **Pull real analytics.**
    - `python3 /opt/devtocash/gsc_api.py` for Search Console (impressions/clicks/CTR).
    - GA4 via the analityco service account: set `GOOGLE_APPLICATION_CREDENTIALS=/opt/evonic/shared/agents/analityco/ga4-service-account.json`, property `528804171`, using the `google.analytics.data_v1beta` client. Query `sessions`, `totalUsers`, `screenPageViews` for `7daysAgo`→`today` and `yesterday`; plus top pages and top traffic sources for the last 7 days. Use FRESH relative dates, never hardcoded ones.
+   - PostHog (product analytics — best source for top pages, referrers, and on-site tool/engagement events): `python3 /opt/dtc-agent/lib/posthog_report.py` (add `--json` to parse). Treat PostHog counts as directional/lower than GA4 (adblockers hit its JS SDK harder) — use GA4 for the headline session count, PostHog for the page/referrer/engagement breakdowns. Cross-check the two: if they disagree wildly on direction, say so.
 
 2. **Cross-post the new article** (skip if PUBLISHED_SLUG is NONE). Canonical URL is `https://devtocash.com/blog/<PUBLISHED_SLUG>`. Read the FULL post at `content/posts/<PUBLISHED_SLUG>.mdx` — you need its actual content to write a value-first hook (do NOT just paste the title).
 
@@ -42,6 +43,7 @@ no article was published today and why (the caller will tell you).
 
 3. **Send the boss a Telegram report.** Read `TELEGRAM_BOT_TOKEN` and `TELEGRAM_ALLOWED_CHAT_IDS` from `.env`. POST to `https://api.telegram.org/bot<token>/sendRichMessage` with `{"chat_id":<id>,"rich_message":{"markdown":"<report>"}}` (native bordered tables). If that returns non-ok, fall back to `https://api.telegram.org/bot<token>/sendMessage` with plain text. The report (Indonesian/English mix, concise, like a capable teammate — NOT a formal bulletin) must include:
    - A markdown table of the GA/GSC headline numbers (sessions/users/pageviews 7d & 28d, GSC impressions/clicks/CTR).
+   - A short PostHog block: top 3-5 pages, notable referrers (call out non-search/social referrers like a Microsoft Teams / Slack / newsletter share — those are real practitioners sharing us), and any custom engagement events. One line of insight on what the breakdown implies for content.
    - What got published today (title + `https://devtocash.com/blog/<slug>`) or why nothing did.
    - Which channels it cross-posted to (Twitter/Threads/dev.to) with live links; note any that failed and why.
    - 2-3 concrete, data-grounded "what's next" recommendations (tech/devops scope only — trading/finance content is intentionally noindex, don't target it).
