@@ -20,6 +20,7 @@ import argparse
 import json
 import os
 import sys
+import time
 import urllib.request
 import urllib.error
 
@@ -107,12 +108,30 @@ def main():
     cp = res["data"]["createPost"]
     if cp["__typename"] == "PostActionSuccess":
         pid = cp["post"]["id"]
-        # verify sent
-        v = gql(token, 'query($i: PostInput!){ post(input:$i){ status externalLink } }',
-                {"i": {"id": pid}})
-        p = v.get("data", {}).get("post", {})
-        print(json.dumps({"ok": True, "id": pid, "status": p.get("status"),
-                          "externalLink": p.get("externalLink"), "posts": len(posts)}, indent=2))
+        # Poll until the post reaches a TERMINAL status. Threads publishes async and
+        # sits in "sending" for a while; reporting that as success once hid a real
+        # Meta-side failure (2026-07-17 multi-agent thread errored silently).
+        VERIFY = ('query($i: PostInput!){ post(input:$i){ status externalLink '
+                  'error { ... on PostPublishingError { message } } } }')
+        p = {}
+        for _ in range(10):                      # up to ~60s
+            v = gql(token, VERIFY, {"i": {"id": pid}})
+            p = v.get("data", {}).get("post") or {}
+            if p.get("status") in ("sent", "error"):
+                break
+            time.sleep(6)
+        st = p.get("status")
+        out = {"ok": st == "sent", "id": pid, "status": st,
+               "externalLink": p.get("externalLink"), "posts": len(posts)}
+        err = (p.get("error") or {}).get("message")
+        if err:
+            out["error"] = err
+        if st != "sent":
+            out["warning"] = ("publishing failed — retry later" if st == "error"
+                              else "still not 'sent' after 60s — verify in Buffer")
+            print(json.dumps(out, indent=2), file=sys.stderr)
+            return 4
+        print(json.dumps(out, indent=2))
         return 0
     print(json.dumps({"ok": False, "type": cp["__typename"], "message": cp.get("message")}), file=sys.stderr)
     return 4
