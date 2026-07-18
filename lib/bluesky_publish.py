@@ -62,6 +62,26 @@ def make_link_facets(text, url):
     }]
 
 
+def make_tag_facets(text):
+    """Hashtags are only clickable/searchable on Bluesky with a #tag facet.
+    Without this they're inert text and add zero discoverability (we shipped
+    them dead until 2026-07-18)."""
+    facets = []
+    for m in re.finditer(r'(?<![\w/])#([A-Za-z][A-Za-z0-9_]{0,63})', text):
+        facets.append({
+            "index": {"byteStart": len(text[:m.start()].encode("utf-8")),
+                      "byteEnd": len(text[:m.end()].encode("utf-8"))},
+            "features": [{"$type": "app.bsky.richtext.facet#tag", "tag": m.group(1)}],
+        })
+    return facets
+
+
+def build_facets(text, url):
+    """All facets for a post, ordered by byteStart (AT Proto expects sorted)."""
+    f = (make_link_facets(text, url) if url else []) + make_tag_facets(text)
+    return sorted(f, key=lambda x: x["index"]["byteStart"])
+
+
 def frontmatter(slug):
     path = os.path.join(POSTS_DIR, f"{slug}.mdx")
     if not os.path.exists(path):
@@ -118,7 +138,7 @@ def main():
         "createdAt": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "langs": ["en"],
     }
-    facets = make_link_facets(text, link) if link else []
+    facets = build_facets(text, link)
     if facets:
         record["facets"] = facets
     # Rich preview card (no thumb — avoids a blob upload; still shows title/desc).

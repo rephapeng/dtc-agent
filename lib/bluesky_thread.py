@@ -63,6 +63,26 @@ def link_facets(text, url):
              "features": [{"$type": "app.bsky.richtext.facet#link", "uri": url}]}]
 
 
+def tag_facets(text):
+    """Hashtags are only clickable/searchable on Bluesky if given a #tag facet.
+    Without this they are inert text and add zero discoverability (we shipped
+    them dead until 2026-07-18). Byte offsets, per AT Protocol."""
+    facets = []
+    for m in re.finditer(r'(?<![\w/])#([A-Za-z][A-Za-z0-9_]{0,63})', text):
+        bs = len(text[:m.start()].encode("utf-8"))
+        be = len(text[:m.end()].encode("utf-8"))
+        facets.append({"index": {"byteStart": bs, "byteEnd": be},
+                       "features": [{"$type": "app.bsky.richtext.facet#tag",
+                                     "tag": m.group(1)}]})
+    return facets
+
+
+def build_facets(text, url):
+    """All facets for a post, sorted by byteStart (AT Proto expects ordered)."""
+    f = (link_facets(text, url) if url else []) + tag_facets(text)
+    return sorted(f, key=lambda x: x["index"]["byteStart"])
+
+
 def frontmatter(slug):
     path = os.path.join(POSTS_DIR, f"{slug}.mdx")
     if not slug or not os.path.exists(path):
@@ -121,7 +141,7 @@ def main():
                "langs": ["en"]}
         if parent:
             rec["reply"] = {"root": root, "parent": parent}
-        f = link_facets(text, link) if link else []
+        f = build_facets(text, link)
         if f:
             rec["facets"] = f
         # preview card only on the post that actually contains the link
